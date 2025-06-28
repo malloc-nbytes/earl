@@ -170,7 +170,7 @@ read_file(const char *filepath, std::vector<std::string> &include_dirs) {
 #ifdef PORTABLE
     auto baked_path = sanatize_stdlib_bake_fp(filepath);
     auto it = baked_stdlib.find(baked_path);
-    if (it != baked_stdlib.end() && ((flags & __WITHOUT_STDLIB) == 0))
+    if (it != baked_stdlib.end() && ((config::runtime::flags & __WITHOUT_STDLIB) == 0))
         return it->second;
 #endif
 
