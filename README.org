@@ -21,7 +21,7 @@
 
 
 
-
+*NOTE:* This package can be installed through =forge= [ https://github.com/malloc-nbytes/forge ].
 
 *NOTE*: *This language is currently being rewritten to be a bytecode interpreter. See branch `rewrite` for updates.*
 
