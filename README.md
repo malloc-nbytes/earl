@@ -6,7 +6,7 @@ _NOTE_: _This language is still in the infant stage and it is _NOT_ recommended 
 
 _NOTE_: As of now, the only supported platform is Linux, and no guarantees for MacOS.
 
-_NOTE_: (If contributing) do not modify the `README.html` as it is auto generated from `README.org` by https://orgmode.org/][Emacs Org Mode.
+_NOTE_: (If contributing) do not modify the `README.html` as it is auto generated from `README.org` by https://orgmode.org/ (Emacs Org Mode).
 
 ![EARL logo](./misc/earl-logo-resized.jpg)
 
