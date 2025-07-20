@@ -250,7 +250,7 @@ module System
 #--   a single file, perform `cmd` on it.
 @pub fn cmd_on_files(@const @ref fp: str, @const @ref cmd: str): unit {
     if (isdir(fp)) {
-        let files = ls(dir).filter(|f| { return !isdir(f); });
+        let files = ls(fp).filter(|f| { return !isdir(f); });
         foreach f in files {
             $format(cmd, ' ', f);
         }
