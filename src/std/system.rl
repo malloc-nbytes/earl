@@ -255,7 +255,7 @@ module System
             $format(cmd, ' ', f);
         }
     } else {
-        $format(cmd, ' ', f);
+        $format(cmd, ' ', fp);
     }
 }
 ### End
