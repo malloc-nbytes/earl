@@ -239,3 +239,23 @@ module System
     return matches;
 }
 ### End
+
+### Function
+#-- Name: cmd_on_files
+#-- Parameter: fp: @const @ref str
+#-- Parameter: cmd: @const @ref str
+#-- Returns: unit
+#-- Description:
+#--   Perform `cmd` on all files in dir `fp`, or if `fp` is
+#--   a single file, perform `cmd` on it.
+@pub fn cmd_on_files(@const @ref fp: str, @const @ref cmd: str): unit {
+    if (isdir(fp)) {
+        let files = ls(dir).filter(|f| { return !isdir(f); });
+        foreach f in files {
+            $format(cmd, ' ', f);
+        }
+    } else {
+        $format(cmd, ' ', f);
+    }
+}
+### End
