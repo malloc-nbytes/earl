@@ -63,8 +63,9 @@
 #define FUNCS ":funcs"
 #define RESET ":reset"
 #define AUTO ":auto"
+#define HISTORY ":hist"
 
-#define CMD_OPTION_ASCPL {QUIT, CLEAR, SKIP, HELP, RM_ENTRY, EDIT_ENTRY, LIST_ENTRIES, IMPORT, DISCARD, VARS, FUNCS, RESET, AUTO}
+#define CMD_OPTION_ASCPL {QUIT, CLEAR, SKIP, HELP, RM_ENTRY, EDIT_ENTRY, LIST_ENTRIES, IMPORT, DISCARD, VARS, FUNCS, RESET, AUTO, HISTORY}
 
 static std::string REPL_HIST = "";
 
@@ -222,6 +223,7 @@ help(void) {
     log("| " DISCARD " -> discard the current session\n");
     log("| " RESET " -> reset all identifiers\n");
     log("| " AUTO " -> show all completions\n");
+    log("| " HISTORY " -> show REPL history\n");
     log("Controls: (C = [CONTROL], M = [META] (ALT))\n");
     log("| Navigation:\n");
     log("| | [UP] -> previous line\n");
@@ -568,6 +570,14 @@ reset(std::shared_ptr<Ctx> &ctx) {
 }
 
 static void
+show_hist(void)
+{
+    for (size_t i = 0; i < HIST.size(); ++i) {
+        std::cout << HIST.at(i) << std::endl;
+    }
+}
+
+static void
 handle_repl_arg(repled::RawInput &ri, std::string &line, std::vector<std::string> &lines, std::vector<std::string> &include_dirs, std::shared_ptr<Ctx> &ctx) {
     std::vector<std::string> lst = split_on_space(line);
     std::vector<std::string> args(lst.begin()+1, lst.end());
@@ -603,6 +613,8 @@ handle_repl_arg(repled::RawInput &ri, std::string &line, std::vector<std::string
         help();
     else if (lst[0] == AUTO)
         repled::show_prefix_trie();
+    else if (lst[0] == HISTORY)
+        show_hist();
     else
         log("unknown command sequence `" + lst[0] + "`\n", repled::msg_color);
 }
