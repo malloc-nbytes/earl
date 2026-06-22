@@ -1,0 +1,242 @@
+#!/usr/bin/env python3
+
+import subprocess
+import tempfile
+import shutil
+import sys
+import os
+
+CONFIG_H_PATH = 'include/config.h'
+
+CFLAGS = [
+    "-Iinclude", "-ggdb", "-O2", "-Wall", "-Wextra", "-std=gnu17",
+    "-Wshadow", "-Wconversion", "-Wsign-conversion", "-Wunused", "-Wuninitialized",
+    "-Wstrict-prototypes", "-Wmissing-prototypes", "-Wmissing-declarations",
+    "-Wredundant-decls", "-Wfloat-equal", "-Wdouble-promotion", "-Wformat=2",
+    "-Wformat-truncation", "-Wformat-overflow", "-Wundef", "-Wcast-align",
+    "-Wcast-qual", "-Wpointer-arith", "-fstack-protector-strong", "-D_FORTIFY_SOURCE=2",
+    "-pipe", "-march=native"
+]
+
+PREFIX = '/usr/local'
+
+def err(msg):
+    print(f'[premake ERR]: {msg}')
+    sys.exit(1)
+
+def info(msg, end='\n'):
+    print('[premake]:', msg, end=end)
+    sys.stdout.flush()
+
+def print_file(path):
+    with open(path, 'r') as f: print(f.read(), end='')
+
+# --------------------------
+# Compiler detection
+# --------------------------
+def detect_compiler():
+    candidates = [
+        shutil.which('x86_64-pc-linux-gnu-gcc'),
+        shutil.which('x86_64-pc-linux-gnu-cc'),
+        shutil.which('cc'),
+        shutil.which('gcc'),
+        shutil.which('clang'),
+        '/usr/bin/x86_64-pc-linux-gnu-gcc',
+        '/usr/bin/x86_64-pc-linux-gnu-cc',
+        '/usr/bin/cc',
+        '/usr/bin/gcc',
+        '/usr/bin/clang',
+        '/bin/cc',
+        '/bin/gcc',
+        '/bin/clang',
+    ]
+
+    for c in candidates:
+        if c and shutil.which(c):
+            print(f"[premake]: Using compiler: {c}")
+            return c
+        if c and os.path.isfile(c) and os.access(c, os.X_OK):
+            print(f"[premake]: Using compiler: {c}")
+            return c
+
+    raise RuntimeError("No C compiler found on this system")
+
+# --------------------------
+# Utility checks
+# --------------------------
+def check_command(cc, args=None):
+    args = args or []
+    full_cmd = [cc] + args
+    try:
+        result = subprocess.run(full_cmd, capture_output=True, text=True, check=True)
+        return True, result.stdout.strip()
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return False, None
+
+def check_file(path):
+    return os.path.exists(path)
+
+def check_macro(cc, macro_name, includes=None):
+    includes = includes or ['<limits.h>']
+    include_lines = ''.join(f'#include {hdr}\n' for hdr in includes)
+    c_code = f"""
+    {include_lines}
+    int main() {{
+    #ifdef {macro_name}
+        return 0;
+    #else
+        return 1;
+    #endif
+    }}
+    """
+    with tempfile.NamedTemporaryFile("w", suffix=".c", delete=False) as f:
+        f.write(c_code)
+        fname = f.name
+
+    compile_result = subprocess.run([cc, fname, "-o", fname + ".out"], capture_output=True)
+    if compile_result.returncode != 0:
+        return False
+    run_result = subprocess.run([fname + ".out"])
+    try:
+        os.remove(fname)
+        os.remove(fname + ".out")
+    except FileNotFoundError:
+        pass
+    return run_result.returncode == 0
+
+def check_function(cc, func_name, includes=None):
+    includes = includes or ['<stdio.h>']
+    include_lines = ''.join(f'#include {hdr}\n' for hdr in includes)
+    c_code = f"""
+    {include_lines}
+    int main() {{
+        (void){func_name};
+        return 0;
+    }}
+    """
+    with tempfile.NamedTemporaryFile("w", suffix=".c", delete=False) as f:
+        f.write(c_code)
+        fname = f.name
+
+    compile_result = subprocess.run([cc, fname, "-o", fname + ".out"], capture_output=True)
+    try:
+        os.remove(fname)
+        os.remove(fname + ".out")
+    except FileNotFoundError:
+        pass
+    return compile_result.returncode == 0
+
+def get_compiler_version(cc):
+    exists, output = check_command(cc, ["--version"])
+    if exists:
+        return output.splitlines()[0]
+    return "unknown"
+
+def check_compiler_flags(cc, flags):
+    test_c_code = "int main() { return 0; }"
+    accepted_flags = []
+    for flag in flags:
+        info(f'check if compiler accepts {flag}... ', end='')
+        with tempfile.NamedTemporaryFile("w", suffix=".c", delete=False) as f:
+            f.write(test_c_code)
+            fname = f.name
+
+        cmd = [cc, fname, "-o", fname + ".out", flag]
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if result.returncode == 0:
+            accepted_flags.append(flag)
+            print('yes')
+        else:
+            print('no')
+        try:
+            os.remove(fname)
+            os.remove(fname + ".out")
+        except FileNotFoundError:
+            pass
+    return accepted_flags
+
+def read_version_file(path='../VERSION'):
+    if not check_file(path):
+        return "0.0.0"
+    with open(path, 'r', encoding='utf-8') as f:
+        return f.read().strip()
+
+def write_config_mk(cc, accepted_flags):
+    global PREFIX
+
+    config_mk_path = 'config.mk'
+    with open(config_mk_path, 'w', encoding='utf-8') as f:
+        f.write(f'# Automatically generated by premake.py\n')
+        f.write(f'CC := {cc}\n')
+        f.write(f'CFLAGS := {" ".join(accepted_flags)}\n')
+        f.write(f'DEBUG_FLAGS := -O0 -g3\n')
+        f.write(f'PREFIX := {PREFIX}\n')
+    print_file(config_mk_path)
+    info(f'Wrote {config_mk_path}')
+
+# --------------------------
+# Generate config
+# --------------------------
+def generate_config():
+    global PREFIX
+
+    info("Detecting system and compiler...")
+    cc = detect_compiler()
+    compiler_version = get_compiler_version(cc)
+    version = read_version_file()
+
+    # Check macros
+    macros_to_check = ['PATH_MAX']
+    macro_results = {}
+    for macro in macros_to_check:
+        result = check_macro(cc, macro)
+        macro_results[macro] = result
+        info(f"checking for {macro}... {'yes' if result else 'no'}")
+
+    # Check functions
+    functions_to_check = [('tcgetattr', '<termios.h>'), ('strlen', '<string.h>')]
+    function_results = {}
+    for func in functions_to_check:
+        result = check_function(cc, func[0], [func[1]])
+        function_results[func] = result
+        info(f"checking for {func[0]}, {func[1]}... {'yes' if result else 'no'}")
+
+    # Check compiler flags
+    accepted_flags = check_compiler_flags(cc, CFLAGS)
+    write_config_mk(cc, accepted_flags)
+
+    # Ensure include directory exists
+    os.makedirs(os.path.dirname(CONFIG_H_PATH), exist_ok=True)
+
+    # Write config.h
+    info(f"Writing {CONFIG_H_PATH}...")
+    with open(CONFIG_H_PATH, 'w', encoding='utf-8') as f:
+        f.write("#ifndef CONFIG_H_INCLUDED\n")
+        f.write("#define CONFIG_H_INCLUDED\n\n")
+        f.write(f'#define VERSION "{version}"\n\n')
+        f.write(f'#define COMPILER "{compiler_version}"\n\n')
+        f.write(f'#define PREFIX "{PREFIX}"\n\n')
+        for macro, exists in macro_results.items():
+            f.write(f"#define HAVE_{macro} {1 if exists else 0}\n\n")
+        for func, exists in function_results.items():
+            f.write(f"#define HAVE_{func[0].upper()} {1 if exists else 0}\n\n")
+        f.write("#endif // CONFIG_H_INCLUDED\n")
+    print_file(CONFIG_H_PATH)
+    info("Done.")
+
+def handle_args(argv):
+    global PREFIX
+    if len(argv) <= 0:
+        return
+    for arg in argv:
+        parts = arg.split('=')
+        if len(parts) <= 1:
+            err(f'unknown option `{arg}\'')
+        if parts[0] == '--prefix':
+            PREFIX = parts[1]
+        else:
+            err(f'unknown option `{arg}\'')
+
+if __name__ == "__main__":
+    handle_args(sys.argv[1:])
+    generate_config()
