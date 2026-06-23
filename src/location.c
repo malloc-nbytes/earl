@@ -1,4 +1,5 @@
 #include "location.h"
+#include "compatibility.h"
 
 location
 location_from(size_t r,

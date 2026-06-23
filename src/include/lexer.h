@@ -1,4 +1,4 @@
-#ifndef LEXER_H_INCLUDED
+ #ifndef LEXER_H_INCLUDED
 #define LEXER_H_INCLUDED
 
 #include "sv.h"
@@ -10,6 +10,7 @@ typedef enum {
         TOKEN_KIND_INTLIT,
         TOKEN_KIND_STRLIT,
         TOKEN_KIND_IDENTIFIER,
+        TOKEN_KIND_KEYWORD,
 } token_kind;
 
 typedef struct {
@@ -31,5 +32,6 @@ typedef struct {
 
 void  lexer_init_translation_unit(void);
 lexer lexer_from(const char *path, char *src);
+void  lexer_dump(lexer l);
 
 #endif // LEXER_H_INCLUDED

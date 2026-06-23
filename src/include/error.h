@@ -18,4 +18,6 @@
                 exit(1);                                                \
         } while (0)
 
+#define unreachable() fatal("%s:%d unreachable", __FILE__, __LINE__)
+
 #endif // ERROR_H_INCLUDED
